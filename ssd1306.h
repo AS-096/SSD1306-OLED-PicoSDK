@@ -30,6 +30,7 @@
 // Set height of Display
 #define SSD1306_HEIGHT 64
 
+#define HEIGHT_BYTE SSD1306_HEIGHT/8
 
 
 /**
@@ -49,7 +50,7 @@ void cmd_ssd1306(uint8_t command);
  * @brief Testing ssd1306 display by turning all pixels on
  * 
  */
-void test_ssd1306() ;
+void all_on_test_ssd1306() ;
 
 /**
  * @brief Writing buffer data into display
@@ -64,5 +65,26 @@ void write_to_display_ssd1306();
  */
 void clear_ssd1306(bool updateDisplay);
 
+/**
+ * @brief Set pixel in buffer to on (1)
+ * 
+ * @param x Column to set on
+ * @param y Row to set on
+ */
+void draw_point_ssd1306(int x, int y);
+
+/**
+ * @brief Set pixel in buffer to off (0)
+ * 
+ * @param x Column to set off
+ * @param y Row to set off
+ */
+void erase_point_ssd1306(int x, int y);
+
+/**
+ * @brief Testing driver config 
+ * 
+ */
+void test_ssd1306();
 
 #endif

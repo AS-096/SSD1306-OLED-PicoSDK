@@ -1,7 +1,7 @@
 /**
  * @file ssd1306.c
  * @author AS-096 
- * @brief Driver for SSD1306 displays on Raspberry Pi Pico
+ * @brief Software driver for SSD1306 displays on Raspberry Pi Pico using Pico SDK
  * @version 0.1
  * @date 2025-07-04
  * 
@@ -14,12 +14,17 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "hardware/i2c.h"
+//multicore used for refreshing display
+#include "pico/multicore.h"
 #include <string.h>
 #include "ssd1306.h"
 
-// buffer for displaying: first byte (byte 0) is command to
-// set following bytes as data (for writing into GDDRAM),
-// and the following bytes are the display bytes (1:on, 0:off)
+/**
+ * @brief buffer for displaying: first byte (byte 0) is command to
+ * set following bytes as data (for writing into GDDRAM),
+ * and the following bytes are the display bytes (1:on, 0:off)
+ * 
+ */
 uint8_t buffer[SSD1306_HEIGHT * SSD1306_WIDTH / 8 +1];
 
 
@@ -39,14 +44,14 @@ void init_ssd1306() {
         0xD3, 0x00,
         // Set Display Start Line
         0x40, 
-        // Set Segment re-map 
-        0xA0,
-        // ! Set horizontal addressing mode 
-        0x20,
+        // Set Segment re-map
+        0xA1,
+        // ! Set vertical addressing mode 
+        0x20, 0x01,
         // Set COM Output Scan Direction
-        0xC0, 
-        // Set COM Pins hardware configuration
-        0xDA, 0x02,
+        0xC8, 
+        // Set COM Pins hardware configuration -- need config if not 128*64
+        0xDA, 0x12,  //0b00010010
         // Set Contrast Control  
         0x81, 0x7F,
         // Disable Entire Display On 
@@ -81,7 +86,7 @@ void cmd_ssd1306(uint8_t command) {
 }
 
 
-void test_ssd1306() {
+void all_on_test_ssd1306() {
     // set all to 1 (on)
     memset(buffer+1, 0xFF, sizeof(buffer)-1);
     write_to_display_ssd1306();
@@ -104,23 +109,59 @@ void write_to_display_ssd1306() {
     return;
 }
 
+void draw_point_ssd1306(int x, int y) {
+    int tmp = 1 + (x*HEIGHT_BYTE) + (int)(y/8);
+    buffer[tmp] = buffer[tmp] | 1 << y%8;
+    return;
+}
 
+void erase_point_ssd1306(int x, int y) {
+    int tmp = 1 + (x*HEIGHT_BYTE) + (int)(y/8);
+    buffer[tmp] = buffer[tmp] & 0xFE << y%8;
+    return;
+}
+
+void test_ssd1306() {
+    for (int i = 0; i < SSD1306_WIDTH; i++) {
+        for (int j = 0; j < SSD1306_HEIGHT; j++) {
+            draw_point_ssd1306(i,j);
+            sleep_ms(1);
+        }
+    }
+    for (int i = 0; i < SSD1306_WIDTH; i++) {
+        for (int j = 0; j < SSD1306_HEIGHT; j++) {
+            erase_point_ssd1306(i,j);
+            sleep_ms(1);
+        }
+    }
+    
+    return;
+}
+
+void update_display() {
+    while (1) {
+        write_to_display_ssd1306();
+    }
+    return;
+}
 
 int main()
 {
     stdio_init_all();
-    sleep_ms(3000);
-
 
     init_ssd1306();
-    test_ssd1306();
-    sleep_ms(1000);
+    all_on_test_ssd1306();
+    sleep_ms(3000);
+
     clear_ssd1306(1);
+    sleep_ms(3000);
 
-
+    multicore_launch_core1(update_display);
     while (1) {
-        ;
+        test_ssd1306();
     }
+    // test_ssd1306();
+
 
     // while (true) {
     //     printf("Hello, world!\n");
